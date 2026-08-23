@@ -1604,3 +1604,18 @@ svg {
     min-height: 44px;
   }
 }
+
+/* Shorter landscape again — 360px tall is a very common Android landscape,
+   and there the first-run tutorial line was enough to push "Lock it in" back
+   under the fold by 7px. Reclaimed from gaps and padding rather than from
+   .rs-track's top margin, which exists to stop the mid-label pill landing on
+   the readouts and is not spare room. */
+@media (orientation: landscape) and (max-height: 390px) {
+  .screen {
+    padding: var(--space-1) var(--space-4) var(--space-2);
+  }
+
+  .question-body {
+    gap: var(--space-1);
+  }
+}
