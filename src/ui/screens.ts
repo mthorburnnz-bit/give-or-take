@@ -257,6 +257,41 @@ function buildChallengeResult(challenge: Challenge, totalScore: number): HTMLDiv
   return box;
 }
 
+/**
+ * The round as five bars, one per question, each filled by the points taken.
+ *
+ * This deliberately mirrors the share card built off this same screen. Score
+ * is driven by how narrow a bracket you dared to set, so a plain row of
+ * hit/miss marks says almost nothing about the round it summarises — and told
+ * a visibly different story from the card the share button produces.
+ *
+ * Points double as the non-colour encoding: a miss reads 0 and a bare hit
+ * reads 5, so the row never depends on telling green from red.
+ */
+function buildScoreBars(recap: readonly RecapItem[]): HTMLDivElement {
+  const row = el("div", "score-bars");
+  for (const { answer } of recap) {
+    const state = answer.tight ? "tight" : answer.hit ? "hit" : "miss";
+    const marker = answer.tight ? "🎯" : answer.hit ? "✅" : "❌";
+
+    const cell = el("div", "score-bar");
+    cell.dataset.state = state;
+    cell.setAttribute("role", "img");
+    cell.setAttribute("aria-label", `${state === "tight" ? "Tight hit" : state === "hit" ? "Hit" : "Miss"}, ${answer.points} points`);
+
+    const track = el("div", "score-bar-track");
+    const fill = el("div", "score-bar-fill");
+    // A bare hit scores MIN_HIT_SCORE, which would otherwise draw the same
+    // empty track as a miss; floor it so the distinction stays visible.
+    fill.style.height = answer.hit ? `${Math.max(8, answer.points)}%` : "0%";
+    track.appendChild(fill);
+
+    cell.append(el("div", "score-bar-marker", marker), track, el("div", "score-bar-value tabular-nums", String(answer.points)));
+    row.appendChild(cell);
+  }
+  return row;
+}
+
 export function buildResultsScreen(props: ResultsScreenProps): { el: HTMLDivElement; shareBtn: HTMLButtonElement } {
   const screen = el("div", "screen");
 
@@ -269,11 +304,7 @@ export function buildResultsScreen(props: ResultsScreenProps): { el: HTMLDivElem
     total.appendChild(el("div", "results-percentile", `Beat ${props.percentile}% of players today`));
   }
 
-  const emojiRow = el(
-    "div",
-    "emoji-row",
-    props.recap.map((r) => (r.answer.tight ? "🎯" : r.answer.hit ? "✅" : "❌")).join(""),
-  );
+  const scoreBars = buildScoreBars(props.recap);
 
   const verdict = el("div", "verdict-line", props.verdict);
 
@@ -302,7 +333,7 @@ export function buildResultsScreen(props: ResultsScreenProps): { el: HTMLDivElem
   shareBtn.type = "button";
   shareBtn.addEventListener("click", props.onShare);
 
-  screen.append(total, emojiRow, verdict);
+  screen.append(total, scoreBars, verdict);
 
   if (props.challenge) {
     screen.appendChild(buildChallengeResult(props.challenge, props.totalScore));

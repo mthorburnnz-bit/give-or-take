@@ -669,11 +669,65 @@ svg {
   font-variant-numeric: tabular-nums;
 }
 
-.emoji-row {
-  text-align: center;
-  font-size: 1.8rem;
-  letter-spacing: 0.15em;
+/* The round as a five-bar chart. Bar height is the points taken, which is
+   really a read-out of how narrow the bracket was — the same thing the share
+   card shows, so the screen and the card tell one story. */
+.score-bars {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--space-2);
+  max-width: 300px;
+  margin: 0 auto;
 }
+
+.score-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.score-bar-marker {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.score-bar-track {
+  width: 100%;
+  height: 64px;
+  border-radius: var(--radius-sm);
+  background: var(--color-paper-raised);
+  border: 1px solid var(--color-line);
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+
+.score-bar-fill {
+  width: 100%;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  background: var(--color-hit);
+  transition: height 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.score-bar[data-state="tight"] .score-bar-fill {
+  background: var(--color-tight);
+}
+
+.score-bar[data-state="miss"] .score-bar-track {
+  border-color: var(--color-miss);
+}
+
+.score-bar-value {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--color-ink-soft);
+}
+
+.score-bar[data-state="miss"] .score-bar-value {
+  color: var(--color-miss);
+}
+
 
 .verdict-line {
   font-family: var(--font-display);
