@@ -2,7 +2,12 @@ import bundleData from "./generated/content-bundle.json";
 import { scoreAnswer } from "../src/game/scoring.ts";
 import { containsBannedWord } from "../src/game/moderation.ts";
 import { computePercentile } from "../src/game/percentile.ts";
-import { encodeToken, isValidTokenFormat, TOKEN_LENGTH } from "../src/game/challenge.ts";
+import {
+  encodeToken,
+  isValidTokenFormat,
+  TOKEN_LENGTH,
+  buildChallengePreview,
+} from "../src/game/challenge.ts";
 import type { Question } from "../src/game/types.ts";
 
 export interface Env {
@@ -98,6 +103,16 @@ export default {
       // just enough to stop someone brute-forcing the token space.
       if (!(await checkRateLimit(env, "challenge", ip, 60, 600))) return tooManyRequests();
       return handleChallenge(env, url.searchParams.get("token"));
+    }
+
+    // A challenge link is a normal page load that happens to carry a token.
+    // Serve the same app, with the link preview rewritten to name the
+    // challenger, so it says something when pasted into a chat.
+    if ((request.method === "GET" || request.method === "HEAD") && url.pathname === "/") {
+      const previewToken = url.searchParams.get("c");
+      if (previewToken && isValidTokenFormat(previewToken)) {
+        return challengeLinkPreview(request, env, previewToken);
+      }
     }
 
     return env.ASSETS.fetch(request);
@@ -380,7 +395,13 @@ async function handleChallenge(env: Env, token: string | null): Promise<Response
   if (typeof token !== "string" || !isValidTokenFormat(token)) {
     return badRequest("invalid challenge token");
   }
+  const row = await lookupChallenge(env, token);
+  if (!row) return badRequest("challenge not found", 404);
+  return json(row);
+}
 
+/** The score a token stands for, or null if it resolves to nothing. */
+async function lookupChallenge(env: Env, token: string): Promise<ChallengeRow | null> {
   const row = await env.DB.prepare(
     `SELECT p.name as name, c.date as date, ds.score as score, ds.puzzle_number as puzzleNumber
      FROM challenges c
@@ -390,10 +411,7 @@ async function handleChallenge(env: Env, token: string | null): Promise<Response
   )
     .bind(token)
     .first<ChallengeRow>();
-
-  if (!row) return badRequest("challenge not found", 404);
-
-  return json(row);
+  return row ?? null;
 }
 
 interface LeaderboardRow {
@@ -433,4 +451,67 @@ async function handleLeaderboard(env: Env, period: string | null): Promise<Respo
     : await env.DB.prepare(`${base} ${tail}`).all<LeaderboardRow>();
 
   return json({ leaderboard: results, period: weekly ? "week" : "all" });
+}
+
+/** Writes a value into an element's `content` attribute, escaped by the runtime. */
+const setContentAttribute = (value: string) => ({
+  element(element: Element): void {
+    element.setAttribute("content", value);
+  },
+});
+
+/** Replaces an element's text, escaped by the runtime. */
+const setTextContent = (value: string) => ({
+  element(element: Element): void {
+    element.setInnerContent(value);
+  },
+});
+
+/**
+ * Serves the app with its link preview rewritten to name the challenger.
+ *
+ * Only the preview tags change. The document is otherwise the untouched SPA,
+ * which reads ?c= and resolves the challenge exactly as it always has, so a
+ * player's experience of opening the link is unaffected either way.
+ *
+ * Everything published here — a display name and a score — is already public
+ * on the leaderboard. The token saves the recipient looking it up, and grants
+ * no access beyond that.
+ *
+ * Values go through setAttribute/setInnerContent rather than string
+ * concatenation, so a display name containing quotes or angle brackets is
+ * escaped by the runtime for the exact context it lands in, and cannot break
+ * out of the attribute it is written into.
+ */
+async function challengeLinkPreview(request: Request, env: Env, token: string): Promise<Response> {
+  const asset = await env.ASSETS.fetch(request);
+
+  let row: ChallengeRow | null = null;
+  try {
+    row = await lookupChallenge(env, token);
+  } catch {
+    // A dressed-up preview is never worth failing a page load over. An unknown
+    // or unresolvable token falls back to the generic card below.
+  }
+  if (!row) return asset;
+
+  const { title, description } = buildChallengePreview(row.name, row.score, row.puzzleNumber);
+
+  const rewritten = new HTMLRewriter()
+    .on("title", setTextContent(title))
+    .on('meta[property="og:title"]', setContentAttribute(title))
+    .on('meta[property="og:description"]', setContentAttribute(description))
+    .on('meta[name="twitter:title"]', setContentAttribute(title))
+    .on('meta[name="twitter:description"]', setContentAttribute(description))
+    .transform(asset);
+
+  const headers = new Headers(rewritten.headers);
+  // This document is personal to one token. Without this, a shared cache can
+  // key on the path and serve one player's challenge card to everybody.
+  headers.set("cache-control", "no-store");
+  return new Response(rewritten.body, {
+    status: rewritten.status,
+    statusText: rewritten.statusText,
+    headers,
+  });
 }

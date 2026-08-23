@@ -33,3 +33,30 @@ export function isValidTokenFormat(token: string): boolean {
   }
   return true;
 }
+
+/** The title and description a shared challenge link previews with. */
+export interface ChallengePreview {
+  title: string;
+  description: string;
+}
+
+/**
+ * The link preview for a "beat my score" link.
+ *
+ * Every shared link previewed identically before this — same title, same
+ * generic blurb — so a challenge dropped into a group chat said nothing about
+ * whose it was or what there was to beat. Naming the challenger and the score
+ * is the whole point of the link.
+ *
+ * Pure, and separate from the worker, so the wording is testable without
+ * standing up a Worker runtime. Escaping is deliberately NOT done here: the
+ * caller writes these through HTMLRewriter's setAttribute/setInnerContent,
+ * which escape for the context they land in. Escaping twice would show
+ * players an &amp; in their own name.
+ */
+export function buildChallengePreview(name: string, score: number, puzzleNumber: number): ChallengePreview {
+  return {
+    title: `${name} scored ${score} on Give or Take #${puzzleNumber}`,
+    description: "Beat it in five questions. Set a range, not a number — tighter and right scores more.",
+  };
+}

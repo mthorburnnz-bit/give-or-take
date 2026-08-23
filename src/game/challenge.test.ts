@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { encodeToken, isValidTokenFormat, TOKEN_LENGTH } from "./challenge.ts";
+import { encodeToken, isValidTokenFormat, TOKEN_LENGTH, buildChallengePreview } from "./challenge.ts";
 
 describe("encodeToken", () => {
   it("produces one character per input byte", () => {
@@ -39,5 +39,21 @@ describe("isValidTokenFormat", () => {
     expect(isValidTokenFormat("aB3xY9z'")).toBe(false);
     expect(isValidTokenFormat("aB3-Y9z0")).toBe(false);
     expect(isValidTokenFormat("aB3 Y9z0")).toBe(false);
+  });
+});
+
+describe("buildChallengePreview", () => {
+  it("names the challenger, the score and the puzzle", () => {
+    const preview = buildChallengePreview("Mark", 246, 28);
+    expect(preview.title).toBe("Mark scored 246 on Give or Take #28");
+    expect(preview.description).toContain("Beat it in five questions");
+  });
+
+  it("leaves markup in a display name alone for the caller to escape", () => {
+    // HTMLRewriter escapes for the attribute it writes into. Escaping here as
+    // well would double-encode, and a player called O'Brien would see O&#39;Brien
+    // in the preview of their own challenge.
+    const preview = buildChallengePreview("<b>O'Brien</b>", 10, 1);
+    expect(preview.title).toBe("<b>O'Brien</b> scored 10 on Give or Take #1");
   });
 });
