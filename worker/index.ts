@@ -99,6 +99,9 @@ export default {
     if (url.pathname === "/api/leaderboard" && request.method === "GET") {
       return handleLeaderboard(env, url.searchParams.get("period"));
     }
+    if (url.pathname === "/api/challenge-results" && request.method === "GET") {
+      return handleChallengeResults(env, url.searchParams.get("playerId"));
+    }
     if (url.pathname === "/api/challenge" && request.method === "GET") {
       // Read-only lookup, hit once per opened share link — generous limit,
       // just enough to stop someone brute-forcing the token space.
@@ -236,6 +239,8 @@ interface SubmitDayBody {
   date?: unknown;
   puzzleNumber?: unknown;
   answers?: unknown;
+  /** Set when this day was played from someone's challenge link. */
+  challengeToken?: unknown;
 }
 
 function isAnswerInput(v: unknown): v is AnswerInput {
@@ -260,7 +265,7 @@ async function handleSubmitDay(request: Request, env: Env): Promise<Response> {
     return badRequest("invalid JSON body");
   }
 
-  const { playerId, playerName, date, puzzleNumber, answers } = body;
+  const { playerId, playerName, date, puzzleNumber, answers, challengeToken } = body;
 
   if (typeof playerId !== "string" || playerId.length < 8 || playerId.length > 64) {
     return badRequest("invalid playerId");
@@ -364,6 +369,14 @@ async function handleSubmitDay(request: Request, env: Env): Promise<Response> {
     .first<{ total: number; lower: number }>();
   const percentile = computePercentile(percentileRow?.lower ?? 0, percentileRow?.total ?? 0);
 
+  // Close the loop on a challenge this day was played from, so the person who
+  // sent the link can be told what happened. Deliberately after the score is
+  // persisted, and using the persisted total rather than this request's
+  // recomputation, so a replay records the same result it did the first time.
+  if (typeof challengeToken === "string" && isValidTokenFormat(challengeToken)) {
+    await recordChallengeAttempt(env, challengeToken, playerId, persistedTotal, now);
+  }
+
   // Mint a share token for this player+date. INSERT OR IGNORE plus a
   // read-back means a replay reuses the existing token rather than
   // orphaning links already sent out — UNIQUE(player_id, date) enforces it.
@@ -387,6 +400,8 @@ async function handleSubmitDay(request: Request, env: Env): Promise<Response> {
 }
 
 interface ChallengeRow {
+  /** Echoed back so the client can report the result of this challenge later. */
+  token: string;
   name: string;
   date: string;
   score: number;
@@ -411,7 +426,7 @@ async function handleChallenge(env: Env, token: string | null): Promise<Response
 /** The score a token stands for, or null if it resolves to nothing. */
 async function lookupChallenge(env: Env, token: string): Promise<ChallengeRow | null> {
   const row = await env.DB.prepare(
-    `SELECT p.name as name, c.date as date, ds.score as score, ds.puzzle_number as puzzleNumber
+    `SELECT c.token as token, p.name as name, c.date as date, ds.score as score, ds.puzzle_number as puzzleNumber
      FROM challenges c
      JOIN players p ON p.id = c.player_id
      JOIN daily_scores ds ON ds.player_id = c.player_id AND ds.date = c.date
@@ -581,4 +596,76 @@ async function handleChallengeCard(request: Request, env: Env, token: string): P
   // Populated without blocking the response the crawler is waiting on.
   await cache.put(request, response.clone());
   return response;
+}
+
+/**
+ * Notes that a player took someone's challenge, and whether they beat it.
+ *
+ * Silently does nothing for an unknown token or for the challenger taking
+ * their own link — you cannot beat yourself, and counting it would make the
+ * "N people took your challenge" line lie on day one.
+ *
+ * Failures here are swallowed. This is a nicety hanging off the end of a
+ * submission that has already been persisted, and it is not worth failing that
+ * submission — and losing the player's score — over.
+ */
+async function recordChallengeAttempt(
+  env: Env,
+  token: string,
+  playerId: string,
+  score: number,
+  now: number,
+): Promise<void> {
+  try {
+    const challenge = await env.DB.prepare(
+      `SELECT c.player_id as ownerId, ds.score as ownerScore
+       FROM challenges c
+       JOIN daily_scores ds ON ds.player_id = c.player_id AND ds.date = c.date
+       WHERE c.token = ?1`,
+    )
+      .bind(token)
+      .first<{ ownerId: string; ownerScore: number }>();
+
+    if (!challenge || challenge.ownerId === playerId) return;
+
+    await env.DB.prepare(
+      `INSERT INTO challenge_attempts (token, player_id, score, beat, created_at)
+       VALUES (?1, ?2, ?3, ?4, ?5)
+       ON CONFLICT(token, player_id) DO UPDATE SET score = excluded.score, beat = excluded.beat`,
+    )
+      .bind(token, playerId, score, score > challenge.ownerScore ? 1 : 0, now)
+      .run();
+  } catch {
+    // See above: a missing attempt row is not worth a failed submission.
+  }
+}
+
+interface ChallengeResultsRow {
+  taken: number;
+  beaten: number;
+}
+
+/**
+ * How the player's own challenges have fared: how many people took them, and
+ * how many of those beat the score the link advertised.
+ *
+ * Counts distinct people rather than rows so the number matches the sentence
+ * it renders into — a person who replays a day is still one person.
+ */
+async function handleChallengeResults(env: Env, playerId: string | null): Promise<Response> {
+  if (typeof playerId !== "string" || playerId.length < 8 || playerId.length > 64) {
+    return badRequest("invalid playerId");
+  }
+
+  const row = await env.DB.prepare(
+    `SELECT COUNT(DISTINCT a.player_id) as taken,
+            COUNT(DISTINCT CASE WHEN a.beat = 1 THEN a.player_id END) as beaten
+     FROM challenge_attempts a
+     JOIN challenges c ON c.token = a.token
+     WHERE c.player_id = ?1`,
+  )
+    .bind(playerId)
+    .first<ChallengeResultsRow>();
+
+  return json({ taken: row?.taken ?? 0, beaten: row?.beaten ?? 0 });
 }

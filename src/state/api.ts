@@ -64,6 +64,8 @@ export interface SubmitDayResult {
 
 /** A score someone else is challenging you to beat, resolved from a ?c= link. */
 export interface Challenge {
+  /** Needed to report back whether this challenge was beaten. */
+  token: string;
   name: string;
   date: string;
   score: number;
@@ -86,11 +88,13 @@ export async function submitDay(
   date: string,
   puzzleNumber: number,
   answers: SubmitDayAnswer[],
+  /** Present when this day was played from someone's challenge link. */
+  challengeToken?: string,
 ): Promise<SubmitDayResult> {
   const res = await fetch("/api/submit-day", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ playerId, playerName, date, puzzleNumber, answers }),
+    body: JSON.stringify({ playerId, playerName, date, puzzleNumber, answers, challengeToken }),
   });
   return parseOrThrow<SubmitDayResult>(res);
 }
@@ -108,4 +112,23 @@ export async function fetchLeaderboard(period: LeaderboardPeriod = "week"): Prom
   const res = await fetch(`/api/leaderboard?period=${period}`);
   const data = await parseOrThrow<{ leaderboard: LeaderboardEntry[] }>(res);
   return data.leaderboard;
+}
+
+/** How the player's own challenge links have fared. */
+export interface ChallengeResults {
+  taken: number;
+  beaten: number;
+}
+
+/**
+ * Asks what happened to the challenges this player sent out.
+ *
+ * Short timeout and no retry: this only decorates the home screen and must
+ * never hold up rendering it. Callers treat a failure as nothing to report.
+ */
+export async function fetchChallengeResults(playerId: string): Promise<ChallengeResults> {
+  const res = await fetch(`/api/challenge-results?playerId=${encodeURIComponent(playerId)}`, {
+    signal: AbortSignal.timeout(6000),
+  });
+  return parseOrThrow<ChallengeResults>(res);
 }

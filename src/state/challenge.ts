@@ -50,9 +50,16 @@ export function loadPendingChallenge(): Challenge | null {
       typeof parsed.name === "string" &&
       typeof parsed.date === "string" &&
       typeof parsed.score === "number" &&
-      typeof parsed.puzzleNumber === "number"
+      typeof parsed.puzzleNumber === "number" &&
+      typeof parsed.token === "string"
     ) {
-      return { name: parsed.name, date: parsed.date, score: parsed.score, puzzleNumber: parsed.puzzleNumber };
+      return {
+        token: parsed.token,
+        name: parsed.name,
+        date: parsed.date,
+        score: parsed.score,
+        puzzleNumber: parsed.puzzleNumber,
+      };
     }
     return null;
   } catch {

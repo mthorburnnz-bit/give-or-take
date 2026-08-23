@@ -8,7 +8,14 @@ import type { DayProgress, AnswerRecord } from "./state/save.ts";
 import { recordDayCompletion, deriveStats } from "./state/stats.ts";
 import { loadPlayerIdentity, createPlayerIdentity, renamePlayerIdentity } from "./state/player.ts";
 import { containsBannedWord } from "./game/moderation.ts";
-import { fetchReveal, submitDay, fetchLeaderboard, fetchChallenge, ApiError } from "./state/api.ts";
+import {
+  fetchReveal,
+  submitDay,
+  fetchLeaderboard,
+  fetchChallenge,
+  fetchChallengeResults,
+  ApiError,
+} from "./state/api.ts";
 import type { Challenge, LeaderboardPeriod } from "./state/api.ts";
 import {
   readChallengeTokenFromUrl,
@@ -84,6 +91,8 @@ const today = todayLocalDateString();
 /** The score this session is playing against, if the player arrived via a
  * ?c= link for today. Null once resolved/expired — see resolveIncomingChallenge. */
 let activeChallenge: Challenge | null = null;
+/** Cached so returning to the home screen doesn't refetch on every visit. */
+let challengeResults: { taken: number; beaten: number } | null = null;
 
 function effectiveReducedMotion(): boolean {
   return save.settings.reducedMotion || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -100,6 +109,7 @@ function showIntro(): void {
     dayState,
     isFirstEverPlay: !save.hasSeenTutorial,
     challenge: activeChallenge,
+    challengeResults,
     onPlay: () => void startTodayFlow(),
     onStats: showStats,
     onArchive: showArchive,
@@ -107,6 +117,31 @@ function showIntro(): void {
     onLeaderboard: () => void showLeaderboard(),
   });
   mountScreen(screen);
+  void refreshChallengeResults();
+}
+
+/**
+ * Pulls in how the player's sent challenges have done, after the home screen
+ * is already on screen.
+ *
+ * Fetched once per session and only when there is something it could report:
+ * a player who has never finished a day has never sent a link. Re-renders
+ * only when the answer is non-empty, so a quiet result never flashes the
+ * screen for nothing.
+ */
+async function refreshChallengeResults(): Promise<void> {
+  if (challengeResults !== null) return;
+  const identity = loadPlayerIdentity();
+  if (!identity) return;
+  let results;
+  try {
+    results = await fetchChallengeResults(identity.id);
+  } catch {
+    return; // Nothing to report beats an error nobody can act on.
+  }
+  if (results.taken === 0) return;
+  challengeResults = results;
+  showIntro();
 }
 
 function showStats(): void {
@@ -208,7 +243,16 @@ async function submitDayToLeaderboard(day: DayProgress): Promise<{ percentile: n
     return { questionId: id, lo: a.lo, hi: a.hi };
   });
   try {
-    const result = await submitDay(identity.id, identity.name, day.date, bank.puzzleNumberForDate(day.date), answers);
+    const result = await submitDay(
+      identity.id,
+      identity.name,
+      day.date,
+      bank.puzzleNumberForDate(day.date),
+      answers,
+      // Tells the server this day was played off someone's link, so they can
+      // be told whether it was beaten.
+      activeChallenge?.token,
+    );
     if (result.challengeToken) saveOwnChallengeToken(day.date, result.challengeToken);
     return { percentile: result.percentile };
   } catch {

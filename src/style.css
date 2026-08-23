@@ -643,6 +643,16 @@ svg {
 
 /* ---------- Challenge links ---------- */
 
+/* News about a link already sent, so it sits quietly under the nav rather
+   than competing with the play button for attention. */
+.challenge-results {
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-accent);
+  margin-top: var(--space-2);
+}
+
 .challenge-banner {
   display: flex;
   align-items: center;

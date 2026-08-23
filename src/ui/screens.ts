@@ -77,6 +77,8 @@ export interface IntroScreenProps {
   isFirstEverPlay: boolean;
   /** Set when the player arrived via a ?c= link for today's puzzle. */
   challenge: Challenge | null;
+  /** How the player's own sent challenges have fared; null while unknown. */
+  challengeResults: { taken: number; beaten: number } | null;
   onPlay: () => void;
   onStats: () => void;
   onArchive: () => void;
@@ -150,6 +152,20 @@ export function buildIntroScreen(props: IntroScreenProps): HTMLDivElement {
   card.appendChild(playBtn);
 
   screen.append(topbar, testerBanner, card);
+
+  const results = props.challengeResults;
+  if (results && results.taken > 0) {
+    // Phrased so both halves stay true at every count, including the case
+    // where everyone who took it beat you.
+    const takers = results.taken === 1 ? "1 person has taken" : `${results.taken} people have taken`;
+    const outcome =
+      results.beaten === 0
+        ? "nobody has beaten you yet"
+        : results.beaten === 1
+          ? "1 beat you"
+          : `${results.beaten} beat you`;
+    screen.appendChild(el("p", "challenge-results", `${takers} your challenge — ${outcome}.`));
+  }
 
   const navLinks = el("div", "nav-links");
   const statsBtn = el("button", undefined, "Stats");
