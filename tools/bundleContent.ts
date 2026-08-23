@@ -1,6 +1,7 @@
-import { writeFileSync, mkdirSync, copyFileSync } from "node:fs";
+import { writeFileSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { woffToTtf } from "./woffToTtf.ts";
 import { loadQuestionBank, loadSchedule } from "./loadContent.ts";
 
 /**
@@ -28,24 +29,23 @@ const publicOutDir = join(here, "..", "content", "generated");
 const publicOutFile = join(publicOutDir, "public-bundle.json");
 
 /**
- * Copies the OG card's fonts next to the content bundle, renamed to .bin.
+ * Unwraps the OG card's fonts out of node_modules and into the worker bundle.
  *
- * Wrangler maps .bin imports to an ArrayBuffer, which is exactly what satori
- * wants, and it has no loader for .woff. Copied from node_modules at build
- * time rather than committed so the font stays a tracked dependency with its
- * licence attached, updated by npm like anything else.
+ * Wrangler maps a .bin import to an ArrayBuffer, which is what resvg wants,
+ * and it has no loader for font files. Taken from node_modules at build time
+ * rather than committed, so the face stays a tracked dependency with its
+ * licence attached and updates through npm like anything else.
  *
  * Gelasio is metrically compatible with Georgia, the first face in the app's
  * display stack, so the card looks like the game rather than merely near it.
- * The .woff is deliberate: satori cannot read woff2.
+ * It is published only as WOFF and WOFF2 while resvg reads plain sfnt, hence
+ * the unwrap on the way through.
  */
-function copyCardFonts(): void {
+function buildCardFonts(): void {
   const fontDir = join(here, "..", "node_modules", "@fontsource", "gelasio", "files");
   for (const weight of [400, 700]) {
-    copyFileSync(
-      join(fontDir, `gelasio-latin-${weight}-normal.woff`),
-      join(workerOutDir, `gelasio-${weight}.bin`),
-    );
+    const woff = readFileSync(join(fontDir, `gelasio-latin-${weight}-normal.woff`));
+    writeFileSync(join(workerOutDir, `gelasio-${weight}.bin`), woffToTtf(woff));
   }
 }
 
@@ -54,7 +54,7 @@ function main(): void {
   const { launchDate, schedule } = loadSchedule();
 
   mkdirSync(workerOutDir, { recursive: true });
-  copyCardFonts();
+  buildCardFonts();
   writeFileSync(workerOutFile, JSON.stringify({ questions, launchDate, schedule }, null, 2));
 
   const publicQuestions = questions.map(({ value: _value, funFact: _funFact, source: _source, ...rest }) => rest);

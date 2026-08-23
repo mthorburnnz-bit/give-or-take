@@ -2,7 +2,7 @@ import bundleData from "./generated/content-bundle.json";
 import { scoreAnswer } from "../src/game/scoring.ts";
 import { containsBannedWord } from "../src/game/moderation.ts";
 import { computePercentile } from "../src/game/percentile.ts";
-import { renderChallengeCard } from "./ogCard.ts";
+import { renderChallengeCard, canRenderName } from "./ogCard.ts";
 import {
   encodeToken,
   isValidTokenFormat,
@@ -504,6 +504,9 @@ async function challengeLinkPreview(request: Request, env: Env, token: string): 
   if (!row) return asset;
 
   const { title, description } = buildChallengePreview(row.name, row.score, row.puzzleNumber);
+  // Same dimensions as the static card the tags already declare, so og:image:width
+  // and og:image:height stay correct without touching them.
+  const cardUrl = new URL(`/og/c/${token}.png`, request.url).toString();
 
   const rewritten = new HTMLRewriter()
     .on("title", setTextContent(title))
@@ -511,6 +514,8 @@ async function challengeLinkPreview(request: Request, env: Env, token: string): 
     .on('meta[property="og:description"]', setContentAttribute(description))
     .on('meta[name="twitter:title"]', setContentAttribute(title))
     .on('meta[name="twitter:description"]', setContentAttribute(description))
+    .on('meta[property="og:image"]', setContentAttribute(cardUrl))
+    .on('meta[name="twitter:image"]', setContentAttribute(cardUrl))
     .transform(asset);
 
   const headers = new Headers(rewritten.headers);
@@ -555,6 +560,10 @@ async function handleChallengeCard(request: Request, env: Env, token: string): P
     return genericCard();
   }
   if (!row) return genericCard();
+  // Only the Latin subset of the face is bundled; a name outside it would draw
+  // as empty boxes, which is worse than the static card the title already
+  // personalises.
+  if (!canRenderName(row.name)) return genericCard();
 
   let png: Uint8Array;
   try {
