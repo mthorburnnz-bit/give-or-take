@@ -47,7 +47,10 @@ def twaManifest = [
     // 'customtabs' and 'webview'.
     fallbackType: 'customtabs',
     enableSiteSettingsShortcut: 'true',
-    orientation: 'portrait',
+    // Play flags a locked orientation as a large-screen defect, and at
+    // targetSdk 36 Android already ignores it on displays >=600dp, so the
+    // lock only bought a warning. The web layout handles landscape.
+    orientation: 'unspecified',
 ]
 
 android {
@@ -57,8 +60,8 @@ android {
         applicationId "com.giveortake.twa"
         minSdkVersion 21
         targetSdkVersion 36
-        versionCode 3
-        versionName "1.0.2"
+        versionCode 4
+        versionName "1.0.3"
 
         // The name for the application
         resValue "string", "appName", twaManifest.name
@@ -200,6 +203,6 @@ repositories {
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     
-        implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.6.2'
+        implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.7.2'
     
 }
