@@ -89,7 +89,11 @@ export function buildIntroScreen(props: IntroScreenProps): HTMLDivElement {
 
   const topbar = el("div", "topbar");
   const logo = el("div", "logo");
-  logo.innerHTML = `Give or <span class="logo-ball">Take</span>`;
+  // The bracket jaws that flank the wordmark are the same mark as the slider
+  // handles and the app icon. Decorative only, so they are hidden from the
+  // accessibility tree rather than read out as stray punctuation.
+  logo.innerHTML =
+    `<span class="logo-bracket" aria-hidden="true">[</span>Give or <span class="logo-ball">Take</span><span class="logo-bracket" aria-hidden="true">]</span>`;
   const streak = el("div", "streak-flame", props.streakCurrent > 0 ? `🔥 ${props.streakCurrent}` : "");
   topbar.append(logo, streak);
 
@@ -109,6 +113,19 @@ export function buildIntroScreen(props: IntroScreenProps): HTMLDivElement {
   const card = el("div", "today-card");
   const puzzleLabel = el("div", "puzzle-number", `Puzzle #${props.puzzleNumber}`);
   card.appendChild(puzzleLabel);
+
+  // A first-time visitor otherwise gets a puzzle number and a button, and no
+  // idea what the game is. Suppressed when a challenge banner is present,
+  // which is a stronger and more specific hook than the generic pitch.
+  if (!props.challenge) {
+    card.appendChild(
+      el(
+        "p",
+        "today-pitch",
+        "Five questions a day. Bracket each answer — the tighter your bracket, the more it scores.",
+      ),
+    );
+  }
 
   if (props.challenge) {
     const banner = el("div", "challenge-banner");

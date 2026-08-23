@@ -62,6 +62,21 @@
   --shadow-card: 0 1px 2px rgba(33, 28, 21, 0.06), 0 4px 16px rgba(33, 28, 21, 0.06);
 
   --max-width: 480px;
+
+  /* Depth. The broadsheet feel comes from paper that looks printed on and
+     objects that look set down on it, so shadows are layered and warm-tinted
+     rather than a single neutral grey blur. */
+  --shadow-raised: 0 1px 1px rgba(33, 28, 21, 0.05), 0 3px 6px rgba(33, 28, 21, 0.07),
+    0 10px 24px rgba(33, 28, 21, 0.06);
+  --shadow-lift: 0 2px 4px rgba(33, 28, 21, 0.1), 0 10px 24px rgba(33, 28, 21, 0.11);
+
+  /* The slider channel reads as cut into the paper, so it is darker than any
+     raised surface rather than lighter. */
+  --color-channel: #e3d8c2;
+
+  /* A fresh sheet set down on the desk: lighter than the page, where every
+     other surface in the system is darker than it. */
+  --color-card: #fdfaf3;
 }
 
 /* ---------- Reset ---------- */
@@ -79,7 +94,14 @@ body {
 
 body {
   margin: 0;
-  background: var(--color-paper);
+  background-color: var(--color-paper);
+  /* A light source at the top and a whisper of tooth. Both are far too faint
+     to read as texture on their own; together they stop the page looking like
+     a flat #f6f0e4 fill. */
+  background-image: radial-gradient(ellipse 120% 70% at 50% 0%, rgba(255, 255, 255, 0.55), transparent 62%),
+    radial-gradient(rgba(33, 28, 21, 0.012) 0.5px, transparent 0.5px);
+  background-size: 100% 100%, 7px 7px;
+  background-attachment: fixed, scroll;
   color: var(--color-ink);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
@@ -212,6 +234,16 @@ svg {
   color: var(--color-accent);
 }
 
+/* The jaws sit lighter and slightly apart from the words so they read as a
+   mark holding the name, not as typed punctuation. */
+.logo .logo-bracket {
+  color: var(--color-accent);
+  font-style: normal;
+  font-weight: 800;
+  margin: 0 0.12em;
+  opacity: 0.55;
+}
+
 .streak-flame {
   display: inline-flex;
   align-items: center;
@@ -236,13 +268,16 @@ svg {
 }
 
 .btn:active {
-  transform: scale(0.98);
+  /* Press it into the page rather than shrinking it in place. */
+  transform: translateY(1px) scale(0.995);
+  box-shadow: 0 1px 2px rgba(33, 28, 21, 0.2);
 }
 
 .btn-primary {
   background: var(--color-ink);
   color: var(--color-paper);
   width: 100%;
+  box-shadow: 0 2px 4px rgba(33, 28, 21, 0.18), 0 8px 18px rgba(33, 28, 21, 0.14);
 }
 
 .btn-primary:disabled {
@@ -299,10 +334,11 @@ svg {
 /* ---------- Intro / today card ---------- */
 
 .today-card {
-  background: var(--color-paper-raised);
+  background: var(--color-card);
+  border: 1px solid var(--color-line);
   border-radius: var(--radius-lg);
   padding: var(--space-6) var(--space-5);
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow-raised);
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -316,6 +352,14 @@ svg {
   letter-spacing: 0.02em;
   text-transform: uppercase;
   font-size: 0.8rem;
+}
+
+.today-pitch {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--color-ink-soft);
+  max-width: 30ch;
+  margin: 0 auto;
 }
 
 .tutorial-line {
@@ -395,11 +439,23 @@ svg {
 }
 
 .question-meta {
-  font-size: 0.8rem;
-  color: var(--color-ink-faint);
-  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: 0.72rem;
+  color: var(--color-accent);
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.12em;
+}
+
+/* The rule running out to the margin is the broadsheet cue — it turns a
+   floating label into a section heading. */
+.question-meta::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--color-line);
 }
 
 .question-body {
@@ -407,7 +463,17 @@ svg {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: var(--space-6);
+  gap: var(--space-5);
+  /* One card holds the whole interaction — category, prompt, bracket and
+     commit — so the eye has a single object to land on instead of four
+     things floating separately on the page. */
+  flex-grow: 0;
+  margin: auto 0;
+  background: var(--color-card);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6) var(--space-5);
+  box-shadow: var(--shadow-raised);
 }
 
 /* ---------- Reveal ---------- */
@@ -675,8 +741,8 @@ svg {
 .score-bars {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: var(--space-2);
-  max-width: 300px;
+  gap: var(--space-3);
+  max-width: 340px;
   margin: 0 auto;
 }
 
@@ -694,10 +760,12 @@ svg {
 
 .score-bar-track {
   width: 100%;
-  height: 64px;
+  height: 72px;
   border-radius: var(--radius-sm);
-  background: var(--color-paper-raised);
-  border: 1px solid var(--color-line);
+  /* The same cut-into-the-page treatment as the slider channel, so the recap
+     reads as the same instrument the round was played on. */
+  background: var(--color-channel);
+  box-shadow: inset 0 2px 3px rgba(33, 28, 21, 0.18), inset 0 -1px 0 rgba(255, 255, 255, 0.5);
   display: flex;
   align-items: flex-end;
   overflow: hidden;
@@ -706,16 +774,19 @@ svg {
 .score-bar-fill {
   width: 100%;
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-  background: var(--color-hit);
-  transition: height 420ms cubic-bezier(0.22, 1, 0.36, 1);
+  background: linear-gradient(180deg, var(--color-hit-punch), var(--color-hit));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transition: height 480ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .score-bar[data-state="tight"] .score-bar-fill {
-  background: var(--color-tight);
+  background: linear-gradient(180deg, #c08a10, var(--color-tight));
 }
 
+/* A miss has no fill to colour, so the channel gets a floor instead — it
+   reads as bottomed out rather than merely empty. */
 .score-bar[data-state="miss"] .score-bar-track {
-  border-color: var(--color-miss);
+  box-shadow: inset 0 2px 3px rgba(33, 28, 21, 0.18), inset 0 -3px 0 var(--color-miss);
 }
 
 .score-bar-value {
@@ -1249,18 +1320,22 @@ svg {
   top: 50%;
   left: 0;
   right: 0;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--color-line);
+  height: 10px;
+  border-radius: 5px;
+  /* Cut into the page rather than drawn on it: a dark inner lip at the top,
+     a bright one at the bottom, which is what sells a groove. */
+  background: var(--color-channel);
+  box-shadow: inset 0 2px 3px rgba(33, 28, 21, 0.2), inset 0 -1px 0 rgba(255, 255, 255, 0.55);
   transform: translateY(-50%);
 }
 
 .rs-fill {
   position: absolute;
   top: 50%;
-  height: 8px;
-  border-radius: 4px;
-  background: var(--color-accent);
+  height: 10px;
+  border-radius: 5px;
+  background: linear-gradient(180deg, #2a63a6, var(--color-accent));
+  box-shadow: 0 1px 2px rgba(29, 78, 137, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.25);
   transform: translateY(-50%);
   cursor: grab;
   touch-action: none;
@@ -1298,43 +1373,56 @@ svg {
   border-radius: var(--radius-pill);
 }
 
+/* The handles are the signature: two bracket jaws, [ and ], closing on the
+   answer. Same mark as the app icon, and the one shape a copycat cannot
+   borrow without visibly borrowing it.
+
+   The clip-path sits on ::after and never on .rs-thumb itself. Clipping the
+   element would clip its touch target down to the visible jaw with it, and
+   that target is the reason this is playable with a thumb at all. */
 .rs-thumb {
   position: absolute;
   top: 50%;
-  width: 24px;
-  height: 24px;
-  margin-left: -12px;
-  border-radius: 50%;
-  background: var(--color-ink);
-  border: 3px solid var(--color-paper);
-  box-shadow: 0 1px 3px rgba(33, 28, 21, 0.35);
+  width: 44px;
+  height: 44px;
+  margin-left: -22px;
   transform: translateY(-50%) scale(1);
-  transition: transform 120ms ease, box-shadow 120ms ease;
-  cursor: pointer;
+  transition: transform 140ms cubic-bezier(0.22, 1, 0.36, 1);
+  cursor: grab;
   touch-action: none;
 }
 
-/* Enlarge the touch target to >=44px without changing the visual size. */
-.rs-thumb::before {
+.rs-thumb::after {
   content: "";
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 44px;
-  height: 44px;
-  transform: translate(-50%, -50%);
+  width: 17px;
+  height: 34px;
+  margin: -17px 0 0 -8.5px;
+  background: var(--color-ink);
+  /* drop-shadow, not box-shadow: a box shadow is cast by the unclipped box,
+     so it would outline a rectangle the eye cannot see. */
+  filter: drop-shadow(0 2px 3px rgba(33, 28, 21, 0.34));
+}
+
+.rs-thumb-lo::after {
+  clip-path: polygon(0 0, 100% 0, 100% 20%, 38% 20%, 38% 80%, 100% 80%, 100% 100%, 0 100%);
+}
+
+.rs-thumb-hi::after {
+  clip-path: polygon(100% 0, 0 0, 0 20%, 62% 20%, 62% 80%, 0 80%, 0 100%, 100% 100%);
 }
 
 @media (hover: hover) {
   .rs-thumb:hover {
-    box-shadow: 0 2px 6px rgba(33, 28, 21, 0.45);
-    transform: translateY(-50%) scale(1.08);
+    transform: translateY(-50%) scale(1.1);
   }
 }
 
 .rs-thumb:active {
   cursor: grabbing;
-  transform: translateY(-50%) scale(1.15);
+  transform: translateY(-50%) scale(1.16);
 }
 
 .rs-ticks {
@@ -1491,6 +1579,8 @@ svg {
 
   .question-body {
     gap: var(--space-2);
+    /* The card's portrait padding is a third of the height budget here. */
+    padding: var(--space-2) var(--space-4);
   }
 
   .question-prompt {
