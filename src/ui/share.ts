@@ -73,23 +73,53 @@ export function buildProfileShareText(
   return { text, url };
 }
 
-export type ShareOutcome = "shared" | "copied" | "failed";
+export type ShareOutcome = "shared" | "copied" | "cancelled" | "failed";
+
+/**
+ * Whether the native share sheet is the right tool on this device.
+ *
+ * Touch-primary devices only. On Windows desktop the sheet is both a worse
+ * experience than the clipboard and actively unreliable: when the shell fails
+ * to enumerate targets it shows "We couldn't show you all the ways you could
+ * share" and rejects with AbortError — the exact error a deliberate
+ * cancellation produces, so the two cannot be told apart after the fact.
+ *
+ * Skipping share() on desktop also keeps the click's user activation intact
+ * for the clipboard write. A share() call that opens a sheet and then fails
+ * has already spent that activation, so the fallback below would be refused
+ * too — which is why the old code left desktop users with no way out at all.
+ */
+function prefersNativeShare(): boolean {
+  if (typeof navigator === "undefined" || typeof navigator.share !== "function") return false;
+  if (typeof matchMedia !== "function") return false;
+  return matchMedia("(pointer: coarse)").matches;
+}
+
+/**
+ * Below this, a sheet cannot plausibly have been shown to a person and
+ * dismissed by them, so an AbortError means it never opened rather than that
+ * anyone chose to close it. Deliberately generous: mistaking a cancellation
+ * for a failure only copies to the clipboard, while the reverse strands the
+ * player with no share at all.
+ */
+const SHEET_DISMISS_FLOOR_MS = 250;
 
 export async function shareResult(content: ShareContent): Promise<ShareOutcome> {
-  if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+  if (prefersNativeShare()) {
+    const startedAt = Date.now();
     try {
       await navigator.share({ text: content.text, url: content.url });
       return "shared";
     } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") {
-        // User cancelled the native share sheet — not a failure, just no-op.
-        return "failed";
-      }
-      // Fall through to clipboard on other share failures.
+      const aborted = err instanceof Error && err.name === "AbortError";
+      if (aborted && Date.now() - startedAt >= SHEET_DISMISS_FLOOR_MS) return "cancelled";
+      // Anything else — including an AbortError far too fast to be a human —
+      // means the sheet never worked. Fall through to the clipboard.
     }
   }
   try {
-    await navigator.clipboard.writeText(`${content.text}\n${content.url}`);
+    await navigator.clipboard.writeText(`${content.text}
+${content.url}`);
     return "copied";
   } catch {
     return "failed";

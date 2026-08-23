@@ -118,7 +118,9 @@ async function handleShareProfile(profile: ReturnType<typeof deriveStats>["categ
   if (!profile) return;
   const outcome = await shareResult(buildProfileShareText(profile));
   if (outcome === "copied") showToast("Copied to clipboard!");
-  else if (outcome === "failed") showToast("Couldn't share — try again");
+  // "cancelled" is deliberate — the player dismissed the sheet, so saying
+  // anything about it would be nagging them about their own choice.
+  else if (outcome === "failed") showToast("Couldn't share — copy failed too");
 }
 
 function showSettings(): void {
@@ -367,7 +369,9 @@ async function handleShare(
   );
   const outcome = await shareResult(content);
   if (outcome === "copied") showToast("Copied to clipboard!");
-  else if (outcome === "failed") showToast("Couldn't share — try again");
+  // "cancelled" is deliberate — the player dismissed the sheet, so saying
+  // anything about it would be nagging them about their own choice.
+  else if (outcome === "failed") showToast("Couldn't share — copy failed too");
 }
 
 /**
