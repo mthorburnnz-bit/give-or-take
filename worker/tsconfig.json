@@ -10,6 +10,13 @@
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "noEmit": true,
+    // satori ships declarations that reference React and Node Buffer types,
+
+    // neither of which a Worker has. Matches the client tsconfig, which has
+
+    // carried this since the start.
+
+    "skipLibCheck": true,
     "strict": true,
     "noImplicitAny": true,
     "noUncheckedIndexedAccess": true,

@@ -2,6 +2,7 @@ import bundleData from "./generated/content-bundle.json";
 import { scoreAnswer } from "../src/game/scoring.ts";
 import { containsBannedWord } from "../src/game/moderation.ts";
 import { computePercentile } from "../src/game/percentile.ts";
+import { renderChallengeCard } from "./ogCard.ts";
 import {
   encodeToken,
   isValidTokenFormat,
@@ -103,6 +104,13 @@ export default {
       // just enough to stop someone brute-forcing the token space.
       if (!(await checkRateLimit(env, "challenge", ip, 60, 600))) return tooManyRequests();
       return handleChallenge(env, url.searchParams.get("token"));
+    }
+
+    // The card image for a shared challenge. Unreferenced by the page until
+    // proven, and served from the edge cache after the first render.
+    const cardMatch = url.pathname.match(/^\/og\/c\/([A-Za-z0-9]+)\.png$/);
+    if (cardMatch && (request.method === "GET" || request.method === "HEAD")) {
+      return handleChallengeCard(request, env, cardMatch[1] ?? "");
     }
 
     // A challenge link is a normal page load that happens to carry a token.
@@ -514,4 +522,54 @@ async function challengeLinkPreview(request: Request, env: Env, token: string): 
     statusText: rewritten.statusText,
     headers,
   });
+}
+
+/** How long a rendered card may be reused. */
+const CARD_CACHE_SECONDS = 86400;
+
+/**
+ * Serves the link-preview image for a challenge token.
+ *
+ * Rendering is expensive enough that doing it per view would be reckless — a
+ * popular link is fetched by every chat client that sees it — so the result
+ * goes into the edge cache. A token's score never changes once the day is
+ * submitted, so the only thing that can go stale is a display name, which a
+ * day of caching bounds.
+ *
+ * Any failure falls back to the static card rather than erroring. A broken
+ * image is worse than a generic one, and a preview is never worth a 500.
+ */
+async function handleChallengeCard(request: Request, env: Env, token: string): Promise<Response> {
+  const genericCard = () => Response.redirect(new URL("/og-image.png", request.url).toString(), 302);
+
+  if (!isValidTokenFormat(token)) return genericCard();
+
+  const cache = caches.default;
+  const cached = await cache.match(request);
+  if (cached) return cached;
+
+  let row: ChallengeRow | null = null;
+  try {
+    row = await lookupChallenge(env, token);
+  } catch {
+    return genericCard();
+  }
+  if (!row) return genericCard();
+
+  let png: Uint8Array;
+  try {
+    png = await renderChallengeCard(row.name, row.score, row.puzzleNumber);
+  } catch {
+    return genericCard();
+  }
+
+  const response = new Response(png as BodyInit, {
+    headers: {
+      "content-type": "image/png",
+      "cache-control": `public, max-age=${CARD_CACHE_SECONDS}`,
+    },
+  });
+  // Populated without blocking the response the crawler is waiting on.
+  await cache.put(request, response.clone());
+  return response;
 }
