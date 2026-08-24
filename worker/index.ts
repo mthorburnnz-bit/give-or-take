@@ -4,6 +4,12 @@ import { containsBannedWord } from "../src/game/moderation.ts";
 import { computePercentile } from "../src/game/percentile.ts";
 import { renderChallengeCard, canRenderName } from "./ogCard.ts";
 import {
+  isDue,
+  localNow,
+  sendReminder,
+  type StoredSubscription,
+} from "./push.ts";
+import {
   encodeToken,
   isValidTokenFormat,
   TOKEN_LENGTH,
@@ -15,6 +21,8 @@ export interface Env {
   ASSETS: Fetcher;
   DB: D1Database;
   RATE_LIMIT: KVNamespace;
+  /** VAPID signing key, set with `wrangler secret put VAPID_PRIVATE_KEY`. */
+  VAPID_PRIVATE_KEY?: string;
 }
 
 interface ContentBundle {
@@ -99,6 +107,13 @@ export default {
     if (url.pathname === "/api/leaderboard" && request.method === "GET") {
       return handleLeaderboard(env, url.searchParams.get("period"));
     }
+    if (url.pathname === "/api/push/subscribe" && request.method === "POST") {
+      if (!(await checkRateLimit(env, "push", ip, 20, 3600))) return tooManyRequests();
+      return handlePushSubscribe(request, env);
+    }
+    if (url.pathname === "/api/push/unsubscribe" && request.method === "POST") {
+      return handlePushUnsubscribe(request, env);
+    }
     if (url.pathname === "/api/challenge-results" && request.method === "GET") {
       return handleChallengeResults(env, url.searchParams.get("playerId"));
     }
@@ -127,6 +142,18 @@ export default {
     }
 
     return env.ASSETS.fetch(request);
+  },
+
+  /**
+   * Hourly sweep for daily reminders.
+   *
+   * Hourly rather than daily because subscribers are in different timezones
+   * and each should be nudged in their own morning, not ours. Each row records
+   * the local date it was last sent on, so twenty-four sweeps still produce at
+   * most one reminder per person per day.
+   */
+  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(sendDailyReminders(env, new Date()));
   },
 };
 
@@ -686,3 +713,135 @@ async function handleChallengeResults(env: Env, playerId: string | null): Promis
 
   return json({ taken: row?.taken ?? 0, beaten: row?.beaten ?? 0 });
 }
+
+interface PushSubscribeBody {
+  playerId?: unknown;
+  utcOffsetMinutes?: unknown;
+  subscription?: { endpoint?: unknown; keys?: { p256dh?: unknown; auth?: unknown } };
+}
+
+/**
+ * Records a device's willingness to be reminded.
+ *
+ * Upserts on the endpoint: a browser hands back the same endpoint when it
+ * re-subscribes, and re-subscribing is how a player's timezone gets refreshed
+ * after they move. Replacing the row rather than inserting keeps one row per
+ * device instead of accumulating a trail of them.
+ */
+async function handlePushSubscribe(request: Request, env: Env): Promise<Response> {
+  let body: PushSubscribeBody;
+  try {
+    body = await request.json();
+  } catch {
+    return badRequest("invalid JSON body");
+  }
+
+  const { playerId, utcOffsetMinutes, subscription } = body;
+  const endpoint = subscription?.endpoint;
+  const p256dh = subscription?.keys?.p256dh;
+  const auth = subscription?.keys?.auth;
+
+  if (typeof playerId !== "string" || playerId.length < 8 || playerId.length > 64) {
+    return badRequest("invalid playerId");
+  }
+  // A push endpoint is a URL owned by the push service. Refuse anything that
+  // isn't one rather than storing an arbitrary string we will later POST to.
+  if (typeof endpoint !== "string" || !endpoint.startsWith("https://") || endpoint.length > 1024) {
+    return badRequest("invalid subscription endpoint");
+  }
+  if (typeof p256dh !== "string" || typeof auth !== "string" || p256dh.length > 256 || auth.length > 256) {
+    return badRequest("invalid subscription keys");
+  }
+  // Real offsets run -720..+840. Anything else is a client bug or a probe.
+  if (typeof utcOffsetMinutes !== "number" || !Number.isInteger(utcOffsetMinutes) ||
+      utcOffsetMinutes < -720 || utcOffsetMinutes > 840) {
+    return badRequest("invalid utcOffsetMinutes");
+  }
+
+  await env.DB.prepare(
+    `INSERT INTO push_subscriptions (endpoint, player_id, p256dh, auth, utc_offset_minutes, created_at)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+     ON CONFLICT(endpoint) DO UPDATE SET
+       player_id = excluded.player_id,
+       p256dh = excluded.p256dh,
+       auth = excluded.auth,
+       utc_offset_minutes = excluded.utc_offset_minutes`,
+  )
+    .bind(endpoint, playerId, p256dh, auth, utcOffsetMinutes, Date.now())
+    .run();
+
+  return json({ ok: true });
+}
+
+/** Forgets a device. Unsubscribing must always appear to work. */
+async function handlePushUnsubscribe(request: Request, env: Env): Promise<Response> {
+  let endpoint: unknown;
+  try {
+    ({ endpoint } = (await request.json()) as { endpoint?: unknown });
+  } catch {
+    return badRequest("invalid JSON body");
+  }
+  if (typeof endpoint !== "string") return badRequest("invalid endpoint");
+
+  await env.DB.prepare(`DELETE FROM push_subscriptions WHERE endpoint = ?1`).bind(endpoint).run();
+  return json({ ok: true });
+}
+
+/**
+ * Sends today's reminder to everyone it is currently morning for.
+ *
+ * Reads every subscription and filters in memory rather than in SQL, because
+ * "is it 9am for this row" depends on that row's own offset. At the scale this
+ * game operates at that is a handful of rows; if subscriptions ever reach the
+ * thousands this wants to become an indexed query on a precomputed send hour.
+ */
+async function sendDailyReminders(env: Env, now: Date): Promise<void> {
+  const privateKey = env.VAPID_PRIVATE_KEY;
+  if (!privateKey) return; // Not configured yet — nothing to do, and not an error.
+
+  const { results: subs } = await env.DB.prepare(
+    `SELECT endpoint, player_id, p256dh, auth, utc_offset_minutes, last_sent_date
+     FROM push_subscriptions`,
+  ).all<StoredSubscription>();
+  if (!subs?.length) return;
+
+  // Which of these people have already played the day they are currently in.
+  const candidateDates = new Set(subs.map((s) => localNow(s.utc_offset_minutes, now).date));
+  const playedDatesByPlayer = new Map<string, Set<string>>();
+  if (candidateDates.size) {
+    const placeholders = [...candidateDates].map((_, i) => `?${i + 1}`).join(", ");
+    const { results: played } = await env.DB.prepare(
+      `SELECT player_id, date FROM daily_scores WHERE date IN (${placeholders})`,
+    )
+      .bind(...candidateDates)
+      .all<{ player_id: string; date: string }>();
+    for (const row of played ?? []) {
+      const dates = playedDatesByPlayer.get(row.player_id) ?? new Set<string>();
+      dates.add(row.date);
+      playedDatesByPlayer.set(row.player_id, dates);
+    }
+  }
+
+  const due = subs.filter((s) => isDue(s, now, playedDatesByPlayer));
+  if (!due.length) return;
+
+  const outcomes = await Promise.all(due.map((s) => sendReminder(s, privateKey)));
+
+  const statements = [];
+  for (const outcome of outcomes) {
+    if (outcome.gone) {
+      statements.push(
+        env.DB.prepare(`DELETE FROM push_subscriptions WHERE endpoint = ?1`).bind(outcome.endpoint),
+      );
+    } else if (outcome.ok) {
+      const sub = due.find((s) => s.endpoint === outcome.endpoint)!;
+      statements.push(
+        env.DB.prepare(`UPDATE push_subscriptions SET last_sent_date = ?2 WHERE endpoint = ?1`)
+          .bind(outcome.endpoint, localNow(sub.utc_offset_minutes, now).date),
+      );
+    }
+    // A failure that isn't "gone" is left untouched, so tomorrow's sweep retries.
+  }
+  if (statements.length) await env.DB.batch(statements);
+}
+

@@ -40,3 +40,6 @@ android/unsigned
 
 # Generated Play Store screenshots — regenerate with tools/screenshots.mjs
 tools/shots
+
+# Web Push signing key — set as a Worker secret, never committed
+.vapid-private-key

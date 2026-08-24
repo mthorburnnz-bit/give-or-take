@@ -9,6 +9,12 @@ import { recordDayCompletion, deriveStats } from "./state/stats.ts";
 import { loadPlayerIdentity, createPlayerIdentity, renamePlayerIdentity } from "./state/player.ts";
 import { containsBannedWord } from "./game/moderation.ts";
 import {
+  getReminderState,
+  enableReminders,
+  disableReminders,
+  type ReminderState,
+} from "./state/push.ts";
+import {
   fetchReveal,
   submitDay,
   fetchLeaderboard,
@@ -158,6 +164,15 @@ async function handleShareProfile(profile: ReturnType<typeof deriveStats>["categ
   else if (outcome === "failed") showToast("Couldn't share — copy failed too");
 }
 
+/**
+ * Reminder state as the browser last reported it.
+ *
+ * Held only for the life of the screen, never persisted: a subscription can
+ * be revoked from outside the app, so a stored flag would render a toggle
+ * that lies about whether anything will actually arrive.
+ */
+let reminderState: ReminderState = "unsupported";
+
 function showSettings(): void {
   const screen = buildSettingsScreen(
     save.settings,
@@ -166,8 +181,41 @@ function showSettings(): void {
       persistSave(save);
     },
     showIntro,
+    { state: reminderState, onToggle: (next) => void toggleReminders(next) },
   );
   mountScreen(screen);
+  void refreshReminderState();
+}
+
+/** Asks the browser where things actually stand, then re-renders if it differs. */
+async function refreshReminderState(): Promise<void> {
+  const state = await getReminderState();
+  if (state === reminderState) return;
+  reminderState = state;
+  showSettings();
+}
+
+async function toggleReminders(next: boolean): Promise<void> {
+  const identity = loadPlayerIdentity();
+  if (next && !identity) {
+    // Reminders are keyed to a player, and a player only exists once they
+    // have finished a day and chosen a name.
+    showToast("Play a day first — then I'll know who to remind.");
+    showSettings();
+    return;
+  }
+
+  const before = reminderState;
+  reminderState = next ? await enableReminders(identity!.id) : await disableReminders();
+  showSettings();
+
+  if (next && reminderState === "blocked") {
+    showToast("Notifications are blocked for this site in your browser settings.");
+  } else if (next && reminderState !== "on") {
+    showToast("Couldn't turn reminders on — try again.");
+  } else if (next && reminderState === "on" && before !== "on") {
+    showToast("Reminder set for 9am.");
+  }
 }
 
 function showArchive(): void {

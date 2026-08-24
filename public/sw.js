@@ -64,3 +64,53 @@ self.addEventListener("fetch", (event) => {
   // they're effectively immutable once fetched.
   event.respondWith(request.mode === "navigate" ? networkFirst(request) : cacheFirst(request));
 });
+
+/**
+ * Daily reminder notifications.
+ *
+ * In the installed Android app these are delegated to the app itself by
+ * androidbrowserhelper's TrustedWebActivityService, so they arrive looking
+ * like Give or Take rather than like Chrome. In a browser they are ordinary
+ * web notifications. Same code path either way.
+ */
+self.addEventListener("push", (event) => {
+  // A push with no body, or an unparseable one, still deserves a notification
+  // rather than nothing — the point is the nudge, not the wording.
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch {
+    payload = {};
+  }
+
+  const title = payload.title || "Give or Take";
+  const body = payload.body || "Today's five are up.";
+
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      // Collapses onto any previous unread reminder rather than stacking a
+      // week of them for someone who has been away.
+      tag: "daily-reminder",
+      renotify: true,
+      data: { url: payload.url || "/" },
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = event.notification.data?.url || "/";
+
+  // Focus an already-open copy rather than opening a second one.
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
+        if (client.url.includes(self.location.origin) && "focus" in client) return client.focus();
+      }
+      return self.clients.openWindow(target);
+    }),
+  );
+});

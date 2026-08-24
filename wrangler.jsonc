@@ -4,6 +4,14 @@
   "main": "worker/index.ts",
   "compatibility_date": "2026-07-31",
   "compatibility_flags": ["nodejs_compat"],
+  // Hourly, because subscribers are in different timezones and each is nudged
+
+  // in their own morning. The sweep is idempotent per person per local day.
+
+  "triggers": {
+    "crons": ["0 * * * *"]
+  },
+
   "observability": {
     "enabled": true
   },

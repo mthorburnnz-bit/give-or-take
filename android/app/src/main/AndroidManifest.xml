@@ -22,6 +22,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.giveortake.twa">
 
+    <!-- Android 13+ requires this before any notification can be shown. The
+         TWA's delegation service posts the daily reminder, so without it the
+         push arrives and nothing appears. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     
 
     

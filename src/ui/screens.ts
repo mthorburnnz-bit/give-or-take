@@ -677,10 +677,17 @@ export function buildLeaderboardScreen(
 
 // ---------- Settings screen ----------
 
+export interface ReminderControl {
+  /** Current state, resolved from the browser rather than from storage. */
+  state: "unsupported" | "blocked" | "on" | "off";
+  onToggle: (next: boolean) => void;
+}
+
 export function buildSettingsScreen(
   settings: SettingsState,
   onChange: (patch: Partial<SettingsState>) => void,
   onBack: () => void,
+  reminder: ReminderControl,
 ): HTMLDivElement {
   const screen = el("div", "screen");
   screen.appendChild(buildTopBar("Settings", onBack));
@@ -703,6 +710,42 @@ export function buildSettingsScreen(
       const next = !settings[key];
       toggle.setAttribute("aria-checked", String(next));
       onChange({ [key]: next } as Partial<SettingsState>);
+    });
+    row.appendChild(toggle);
+    screen.appendChild(row);
+  }
+
+  // Reminders are not a stored preference like the others — the browser owns
+  // the answer, and it can be revoked from outside the app — so this row
+  // reflects live state rather than SettingsState, and is hidden entirely
+  // where push does not exist rather than shown broken.
+  if (reminder.state !== "unsupported") {
+    const row = el("div", "settings-row");
+    const labelWrap = el("div", "settings-label");
+    labelWrap.appendChild(el("span", undefined, "Daily reminder"));
+    labelWrap.appendChild(
+      el(
+        "span",
+        "settings-hint",
+        reminder.state === "blocked"
+          ? "Blocked — turn notifications on for this site in your browser settings."
+          : "A nudge each morning when the day's five are up.",
+      ),
+    );
+    row.appendChild(labelWrap);
+
+    const toggle = el("button", "switch");
+    toggle.type = "button";
+    toggle.setAttribute("role", "switch");
+    toggle.setAttribute("aria-checked", String(reminder.state === "on"));
+    toggle.setAttribute("aria-label", "Daily reminder");
+    if (reminder.state === "blocked") toggle.disabled = true;
+    toggle.addEventListener("click", () => {
+      const next = reminder.state !== "on";
+      // Optimistic, then corrected by the re-render the caller triggers once
+      // the browser has actually answered.
+      toggle.setAttribute("aria-checked", String(next));
+      reminder.onToggle(next);
     });
     row.appendChild(toggle);
     screen.appendChild(row);

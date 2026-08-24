@@ -25,5 +25,5 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["./**/*.ts", "../src/game/scoring.ts", "../src/game/types.ts", "../src/game/moderation.ts"]
+  "include": ["./**/*.ts", "../src/game/scoring.ts", "../src/game/types.ts", "../src/game/moderation.ts", "../src/game/pushKey.ts"]
 }

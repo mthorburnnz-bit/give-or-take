@@ -93,15 +93,12 @@ body {
 body {
   margin: 0;
   background-color: var(--color-paper);
-  /* A light source at the top and a whisper of tooth. Both are far too faint
-     to read as texture on their own; together they stop the page looking like
-     a flat fill. */
   /* The spotlight. Light pooled high and falling away to near-black is the
      whole reason this reads as a lit stage; a flat fill reads as dark mode. */
   background-image: radial-gradient(ellipse 95% 55% at 50% 2%, #1d3f7d 0%, #12295a 34%, #0a1837 62%, #050d20 100%);
   background-size: 100% 100%;
   background-repeat: no-repeat;
-  background-attachment: fixed, scroll;
+  background-attachment: fixed;
   color: var(--color-ink);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
@@ -1210,6 +1207,26 @@ svg {
   padding: var(--space-4);
   background: var(--color-paper-raised);
   border-radius: var(--radius-md);
+}
+
+/* The reminder row carries an explanation the on/off rows do not need, so it
+   stacks a hint under its label rather than being a bare word and a switch. */
+.settings-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-right: var(--space-3);
+}
+
+.settings-hint {
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--color-ink-soft);
+}
+
+.switch:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .app-footer {
