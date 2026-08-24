@@ -548,6 +548,16 @@ async function challengeLinkPreview(request: Request, env: Env, token: string): 
 const CARD_CACHE_SECONDS = 86400;
 
 /**
+ * Bump when the card's design changes.
+ *
+ * Cached cards outlive a deploy — the reskin shipped and every already-shared
+ * link kept previewing the old paper card, because the edge had a day-old copy
+ * and nothing about a deploy invalidates it. Versioning the cache key retires
+ * the old design immediately instead.
+ */
+const CARD_CACHE_VERSION = "2";
+
+/**
  * Serves the link-preview image for a challenge token.
  *
  * Rendering is expensive enough that doing it per view would be reckless — a
@@ -565,7 +575,15 @@ async function handleChallengeCard(request: Request, env: Env, token: string): P
   if (!isValidTokenFormat(token)) return genericCard();
 
   const cache = caches.default;
-  const cached = await cache.match(request);
+  // A synthetic GET key rather than the request itself. cache.put rejects a
+  // non-GET request, and this route answers HEAD as well — which crawlers do
+  // send — so caching the real request 500'd every one of them. The key also
+  // carries the design version, so old cards fall out on a redesign.
+  const cacheKey = new Request(
+    new URL(`/og/c/${token}.png?v=${CARD_CACHE_VERSION}`, request.url).toString(),
+    { method: "GET" },
+  );
+  const cached = await cache.match(cacheKey);
   if (cached) return cached;
 
   let row: ChallengeRow | null = null;
@@ -593,8 +611,7 @@ async function handleChallengeCard(request: Request, env: Env, token: string): P
       "cache-control": `public, max-age=${CARD_CACHE_SECONDS}`,
     },
   });
-  // Populated without blocking the response the crawler is waiting on.
-  await cache.put(request, response.clone());
+  await cache.put(cacheKey, response.clone());
   return response;
 }
 
