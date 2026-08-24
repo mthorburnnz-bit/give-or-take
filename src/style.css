@@ -1,45 +1,47 @@
-/* ==========================================================================
-   Give or Take — design system
-   Editorial / broadsheet-infographic feel. Warm paper, confident ink,
-   one strong accent, colour-blind-safe hit/miss pair (Okabe-Ito).
-   System font stack only — no network font requests (perf + offline).
-   ========================================================================== */
-
 :root {
-  /* Palette — every text colour below is verified >=4.5:1 on both paper
-     surfaces (WCAG AA for normal-size text), not just AA-large. */
-  --color-paper: #f6f0e4;
-  --color-paper-raised: #efe6d4;
-  --color-ink: #211c15;
-  --color-ink-soft: #625a4c;
-  --color-ink-faint: #736d61;
-  --color-line: #ddd2bb;
+  /* Palette — a lit stage rather than a page. Every text colour below is
+     verified >=4.5:1 against every surface it is used on (WCAG AA for normal
+     text), checked with a script rather than by eye; see the reskin commit.
+     The ground is deep studio blue, the accent is gold, and the light falls
+     off towards the edges, which is what makes it read as a stage. */
+  --color-paper: #0a1837; /* the ground everything sits on */
+  --color-paper-raised: #16305e; /* tinted panels: recap rows, stat tiles */
+  --color-card: #142c56; /* the lit card: question, today */
+  --color-ink: #f2f6ff;
+  --color-ink-soft: #a9c1e6;
+  --color-ink-faint: #8fb0e0;
+  --color-line: rgba(243, 198, 90, 0.22);
 
-  --color-accent: #1d4e89; /* range fill, primary actions */
-  --color-accent-soft: #dbe6f2;
-  --color-hit: #007a5e; /* Okabe-Ito bluish green, darkened for AA on paper */
-  --color-hit-soft: #d9efe8;
-  --color-miss: #be4600; /* Okabe-Ito vermillion, darkened for AA on paper */
-  --color-miss-soft: #f7e3d5;
-  --color-tight: #8e6509; /* amber, darkened for AA — used for tight-hit glow/confetti/streak */
+  /* Gold is the accent because it is the colour of stakes, and because it
+     already meant something here: it was the tight-hit colour. */
+  --color-accent: #f3c65a;
+  --color-accent-deep: #e0a92c;
+  --color-accent-soft: rgba(243, 198, 90, 0.16);
+  /* Dark ink for text sitting ON gold — gold is far too light to take white. */
+  --color-on-accent: #2a1c00;
 
-  /* Reveal-moment "punch" colours — same hues as above, pushed more vivid.
-     Only ever used at the reveal instant (needle, fill flash, points, tight
-     badge), never on persistent/recap text, so the calm base stays calm.
-     -punch: for text at reveal size (>=2.6rem bold), verified >=3:1 on paper
-     (WCAG AA-large). -punch-bright: decorative/non-text only (needle dot,
-     glow rings, confetti) — no contrast requirement. -punch-ink: dark text
-     colour for on top of a -punch-bright pill, verified >=4.5:1. */
-  --color-hit-punch: #009468;
-  --color-hit-punch-bright: #00d99b;
-  --color-hit-punch-ink: #023d2d;
-  --color-miss-punch: #e0430a;
-  --color-miss-punch-bright: #ff5a1f;
-  --color-miss-punch-ink: #4a1400;
+  /* Hit and miss keep their Okabe-Ito logic, lightened for a dark ground. The
+     miss is a lightened vermillion rather than a red: a pure red reads dark to
+     a protanope, and these two must differ in lightness as well as hue. Their
+     luminance gap is 0.137, checked alongside the contrast ratios. */
+  --color-hit: #34d399;
+  --color-hit-soft: rgba(52, 211, 153, 0.16);
+  --color-miss: #ff7a5c;
+  --color-miss-soft: rgba(255, 122, 92, 0.16);
+  --color-tight: #ffd970;
 
-  /* Type — a system serif for the editorial "broadsheet" moments (the
-     prompt, big numbers, the verdict line), clean sans everywhere else.
-     No network font requests: both are stacks of fonts already on-device. */
+  /* Reveal-moment punch. On a dark ground the punch is light and glow rather
+     than saturation, so these are the bright ends of each hue plus the shadows
+     that make them appear lit. */
+  --color-hit-punch: #34d399;
+  --color-hit-punch-bright: #6ee7b7;
+  --color-hit-punch-ink: #04231a;
+  --color-miss-punch: #ff7a5c;
+  --color-miss-punch-bright: #ffa088;
+  --color-miss-punch-ink: #3d1105;
+
+  /* Type — unchanged. The serif still carries the prompt and the big numbers;
+     on a dark ground it reads as a title card rather than a broadsheet. */
   --font-display: Georgia, "Iowan Old Style", "Times New Roman", ui-serif, serif;
   --font-body: -apple-system, "Segoe UI", system-ui, sans-serif;
   --font-mono-nums: "Segoe UI", system-ui, sans-serif;
@@ -59,24 +61,20 @@
   --radius-lg: 20px;
   --radius-pill: 999px;
 
-  --shadow-card: 0 1px 2px rgba(33, 28, 21, 0.06), 0 4px 16px rgba(33, 28, 21, 0.06);
+  /* Depth. On paper, depth came from shadows cast onto a light surface. On a
+     stage it comes from light: a lifted object is brighter and rimmed, not
+     darker-underneath, so these carry a glow as well as a shadow. */
+  --shadow-card: 0 2px 10px rgba(2, 6, 18, 0.5);
+  --shadow-raised: 0 1px 0 rgba(243, 198, 90, 0.12) inset, 0 6px 18px rgba(2, 6, 18, 0.55),
+    0 18px 44px rgba(2, 6, 18, 0.45);
+  --shadow-lift: 0 8px 26px rgba(2, 6, 18, 0.6);
+  --glow-accent: 0 0 28px rgba(243, 198, 90, 0.45);
+
+  /* The slider channel is cut into the stage floor, so it is darker than
+     anything around it. */
+  --color-channel: #050d20;
 
   --max-width: 480px;
-
-  /* Depth. The broadsheet feel comes from paper that looks printed on and
-     objects that look set down on it, so shadows are layered and warm-tinted
-     rather than a single neutral grey blur. */
-  --shadow-raised: 0 1px 1px rgba(33, 28, 21, 0.05), 0 3px 6px rgba(33, 28, 21, 0.07),
-    0 10px 24px rgba(33, 28, 21, 0.06);
-  --shadow-lift: 0 2px 4px rgba(33, 28, 21, 0.1), 0 10px 24px rgba(33, 28, 21, 0.11);
-
-  /* The slider channel reads as cut into the paper, so it is darker than any
-     raised surface rather than lighter. */
-  --color-channel: #e3d8c2;
-
-  /* A fresh sheet set down on the desk: lighter than the page, where every
-     other surface in the system is darker than it. */
-  --color-card: #fdfaf3;
 }
 
 /* ---------- Reset ---------- */
@@ -97,10 +95,12 @@ body {
   background-color: var(--color-paper);
   /* A light source at the top and a whisper of tooth. Both are far too faint
      to read as texture on their own; together they stop the page looking like
-     a flat #f6f0e4 fill. */
-  background-image: radial-gradient(ellipse 120% 70% at 50% 0%, rgba(255, 255, 255, 0.55), transparent 62%),
-    radial-gradient(rgba(33, 28, 21, 0.012) 0.5px, transparent 0.5px);
-  background-size: 100% 100%, 7px 7px;
+     a flat fill. */
+  /* The spotlight. Light pooled high and falling away to near-black is the
+     whole reason this reads as a lit stage; a flat fill reads as dark mode. */
+  background-image: radial-gradient(ellipse 95% 55% at 50% 2%, #1d3f7d 0%, #12295a 34%, #0a1837 62%, #050d20 100%);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
   background-attachment: fixed, scroll;
   color: var(--color-ink);
   font-family: var(--font-body);
@@ -270,14 +270,14 @@ svg {
 .btn:active {
   /* Press it into the page rather than shrinking it in place. */
   transform: translateY(1px) scale(0.995);
-  box-shadow: 0 1px 2px rgba(33, 28, 21, 0.2);
+  box-shadow: 0 1px 2px rgba(2, 6, 18, 0.6);
 }
 
 .btn-primary {
-  background: var(--color-ink);
-  color: var(--color-paper);
+  background: linear-gradient(180deg, #ffd970, var(--color-accent-deep));
+  color: var(--color-on-accent);
   width: 100%;
-  box-shadow: 0 2px 4px rgba(33, 28, 21, 0.18), 0 8px 18px rgba(33, 28, 21, 0.14);
+  box-shadow: 0 2px 4px rgba(2, 6, 18, 0.55), 0 8px 18px rgba(2, 6, 18, 0.45), var(--glow-accent);
 }
 
 .btn-primary:disabled {
@@ -309,7 +309,7 @@ svg {
 
 @media (hover: hover) {
   .btn-primary:not(:disabled):hover {
-    background: #3a3226;
+    background: var(--color-accent-deep);
   }
 
   .btn-secondary:hover {
@@ -487,7 +487,7 @@ svg {
 .reveal-points {
   font-family: var(--font-display);
   text-align: center;
-  font-size: 2.6rem;
+  font-size: 4.4rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -775,7 +775,7 @@ svg {
   /* The same cut-into-the-page treatment as the slider channel, so the recap
      reads as the same instrument the round was played on. */
   background: var(--color-channel);
-  box-shadow: inset 0 2px 3px rgba(33, 28, 21, 0.18), inset 0 -1px 0 rgba(255, 255, 255, 0.5);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.8), inset 0 -1px 0 rgba(243, 198, 90, 0.12);
   display: flex;
   align-items: flex-end;
   overflow: hidden;
@@ -796,7 +796,7 @@ svg {
 /* A miss has no fill to colour, so the channel gets a floor instead — it
    reads as bottomed out rather than merely empty. */
 .score-bar[data-state="miss"] .score-bar-track {
-  box-shadow: inset 0 2px 3px rgba(33, 28, 21, 0.18), inset 0 -3px 0 var(--color-miss);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.8), inset 0 -3px 0 var(--color-miss);
 }
 
 .score-bar-value {
@@ -1249,7 +1249,7 @@ svg {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--color-paper-raised);
   transition: transform 150ms ease;
 }
 
@@ -1335,7 +1335,7 @@ svg {
   /* Cut into the page rather than drawn on it: a dark inner lip at the top,
      a bright one at the bottom, which is what sells a groove. */
   background: var(--color-channel);
-  box-shadow: inset 0 2px 3px rgba(33, 28, 21, 0.2), inset 0 -1px 0 rgba(255, 255, 255, 0.55);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.85), inset 0 -1px 0 rgba(243, 198, 90, 0.14);
   transform: translateY(-50%);
 }
 
@@ -1344,8 +1344,8 @@ svg {
   top: 50%;
   height: 10px;
   border-radius: 5px;
-  background: linear-gradient(180deg, #2a63a6, var(--color-accent));
-  box-shadow: 0 1px 2px rgba(29, 78, 137, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  background: linear-gradient(180deg, #ffd970, var(--color-accent-deep));
+  box-shadow: var(--glow-accent);
   transform: translateY(-50%);
   cursor: grab;
   touch-action: none;
@@ -1377,8 +1377,8 @@ svg {
   overflow-wrap: break-word;
   font-size: 0.76rem;
   font-weight: 700;
-  color: var(--color-accent);
-  background: var(--color-accent-soft);
+  color: var(--color-on-accent);
+  background: var(--color-accent);
   padding: 3px 10px;
   border-radius: var(--radius-pill);
 }
@@ -1412,8 +1412,9 @@ svg {
   margin: -17px 0 0 -8.5px;
   background: var(--color-ink);
   /* drop-shadow, not box-shadow: a box shadow is cast by the unclipped box,
-     so it would outline a rectangle the eye cannot see. */
-  filter: drop-shadow(0 2px 3px rgba(33, 28, 21, 0.34));
+     so it would outline a rectangle the eye cannot see. The gold rim is what
+     makes the jaws look lit rather than merely pale. */
+  filter: drop-shadow(0 0 8px rgba(243, 198, 90, 0.75));
 }
 
 .rs-thumb-lo::after {
@@ -1462,8 +1463,13 @@ svg {
 }
 
 .rs.rs-locked {
-  opacity: 0.5;
+  opacity: 0.82;
   pointer-events: none;
+}
+
+.rs.rs-locked .rs-mid-label {
+  opacity: 0;
+  transition: opacity 200ms ease;
 }
 
 /* ---------- Reveal needle ---------- */
@@ -1477,7 +1483,7 @@ svg {
   margin-left: -7px;
   border-radius: 50%;
   background: var(--color-ink);
-  box-shadow: 0 2px 5px rgba(33, 28, 21, 0.35);
+  box-shadow: 0 0 10px rgba(242, 246, 255, 0.7);
   opacity: 0;
   transition: top 550ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 200ms ease, background 200ms ease;
   z-index: 5;
@@ -1527,23 +1533,23 @@ svg {
 
 .rs-needle.state-hit {
   background: var(--color-hit-punch-bright);
-  box-shadow: 0 2px 5px rgba(33, 28, 21, 0.35), 0 0 0 6px rgba(0, 217, 155, 0.3);
+  box-shadow: 0 0 0 6px var(--color-hit-soft), 0 0 18px var(--color-hit-punch-bright);
 }
 
 .rs-needle.state-miss {
   background: var(--color-miss-punch-bright);
-  box-shadow: 0 2px 5px rgba(33, 28, 21, 0.35), 0 0 0 6px rgba(255, 90, 31, 0.3);
+  box-shadow: 0 0 0 6px var(--color-miss-soft), 0 0 18px var(--color-miss-punch-bright);
 }
 
 .rs-fill.flash-hit {
   background: var(--color-hit-punch-bright) !important;
-  box-shadow: 0 0 0 4px rgba(0, 217, 155, 0.35), 0 0 16px rgba(0, 217, 155, 0.5);
+  box-shadow: 0 0 0 4px var(--color-hit-soft), 0 0 22px var(--color-hit-punch-bright);
   transition: background 220ms ease, box-shadow 220ms ease;
 }
 
 .rs-fill.flash-miss {
   background: var(--color-miss-punch-bright) !important;
-  box-shadow: 0 0 0 4px rgba(255, 90, 31, 0.35), 0 0 16px rgba(255, 90, 31, 0.5);
+  box-shadow: 0 0 0 4px var(--color-miss-soft), 0 0 22px var(--color-miss-punch-bright);
   transition: background 220ms ease, box-shadow 220ms ease;
 }
 
@@ -1627,5 +1633,13 @@ svg {
 
   .question-body {
     gap: var(--space-1);
+    padding: var(--space-1) var(--space-4);
+  }
+
+  /* Prompt length is the variable that actually decides whether this fits: a
+     two-line prompt costs 25px here, and which questions wrap changes daily.
+     Sizing down slightly buys back most of a wrapped line. */
+  .question-prompt {
+    font-size: clamp(1.05rem, 2.2vw, 1.3rem);
   }
 }

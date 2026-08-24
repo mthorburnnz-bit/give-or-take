@@ -29,10 +29,12 @@ function ensureWasm(): Promise<void> {
   return wasmReady;
 }
 
-const PAPER = "#f6f0e4";
-const INK = "#211c15";
-const INK_SOFT = "#625a4c";
-const ACCENT = "#1d4e89";
+const GROUND = "#0a1837";
+const GROUND_LIT = "#1d3f7d";
+const GROUND_EDGE = "#050d20";
+const INK = "#f2f6ff";
+const INK_SOFT = "#a9c1e6";
+const ACCENT = "#f3c65a";
 
 /** Everything interpolated into the SVG passes through here first. */
 function escapeXml(value: string): string {
@@ -105,7 +107,14 @@ export function buildCardSvg(name: string, score: number, puzzleNumber: number):
   const kicker = escapeXml(`GIVE OR TAKE  ·  PUZZLE #${puzzleNumber}`);
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}">
-  <rect width="${WIDTH}" height="${HEIGHT}" fill="${PAPER}"/>
+  <defs>
+    <radialGradient id="stage" cx="50%" cy="4%" r="78%">
+      <stop offset="0%" stop-color="${GROUND_LIT}"/>
+      <stop offset="42%" stop-color="${GROUND}"/>
+      <stop offset="100%" stop-color="${GROUND_EDGE}"/>
+    </radialGradient>
+  </defs>
+  <rect width="${WIDTH}" height="${HEIGHT}" fill="url(#stage)"/>
   <text x="${WIDTH / 2}" y="122" text-anchor="middle" font-family="Gelasio" font-weight="700"
         font-size="30" letter-spacing="6" fill="${ACCENT}">${kicker}</text>
   <text x="${WIDTH / 2}" y="366" text-anchor="middle" font-family="Gelasio" font-weight="700">
