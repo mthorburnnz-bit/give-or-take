@@ -672,37 +672,6 @@ svg {
   color: var(--color-accent);
 }
 
-/* ---------- Tester recruitment banner (home screen only) ---------- */
-
-.tester-banner {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  background: var(--color-accent-soft);
-  border-radius: var(--radius-md);
-  padding: var(--space-3) var(--space-4);
-  text-align: left;
-}
-
-.tester-banner-icon {
-  font-size: 1.4rem;
-  line-height: 1;
-  flex-shrink: 0;
-}
-
-.tester-banner-text {
-  font-weight: 600;
-  font-size: 0.88rem;
-  color: var(--color-accent);
-  line-height: 1.4;
-}
-
-.tester-banner-text a {
-  font-weight: 700;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
 .challenge-result {
   border-radius: var(--radius-md);
   padding: var(--space-4);

@@ -99,19 +99,6 @@ export function buildIntroScreen(props: IntroScreenProps): HTMLDivElement {
   const streak = el("div", "streak-flame", props.streakCurrent > 0 ? `🔥 ${props.streakCurrent}` : "");
   topbar.append(logo, streak);
 
-  const testerBanner = el("div", "tester-banner");
-  testerBanner.appendChild(el("span", "tester-banner-icon", "📱"));
-  const testerText = el("span", "tester-banner-text");
-  testerText.appendChild(
-    document.createTextNode("We're looking for Android testers! Help us test the app before launch — "),
-  );
-  const testerLink = document.createElement("a");
-  testerLink.href = "mailto:contactme@give-or-take.com?subject=Android%20tester";
-  testerLink.textContent = "email us";
-  testerText.appendChild(testerLink);
-  testerText.appendChild(document.createTextNode(" to join."));
-  testerBanner.appendChild(testerText);
-
   const card = el("div", "today-card");
   const puzzleLabel = el("div", "puzzle-number", `Puzzle #${props.puzzleNumber}`);
   card.appendChild(puzzleLabel);
@@ -151,7 +138,7 @@ export function buildIntroScreen(props: IntroScreenProps): HTMLDivElement {
   playBtn.addEventListener("click", props.onPlay);
   card.appendChild(playBtn);
 
-  screen.append(topbar, testerBanner, card);
+  screen.append(topbar, card);
 
   const results = props.challengeResults;
   if (results && results.taken > 0) {
