@@ -8,8 +8,8 @@ import gelasioBold from "./generated/gelasio-700.bin";
  *
  * The text tags alone left a personalised headline sitting next to a generic
  * picture, and in every chat client that matters the picture is the larger
- * half. This draws the same card the game does: paper, the bracket mark
- * clamping the score, and the challenger named underneath.
+ * half. This draws the same card the game does: the lit stage, the bracket
+ * mark clamping the score, and the challenger named underneath.
  *
  * The SVG is written by hand rather than laid out by satori. satori would mean
  * a real layout engine — yoga for boxes, harfbuzz for shaping — and neither
