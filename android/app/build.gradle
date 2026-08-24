@@ -58,7 +58,10 @@ android {
     namespace "com.giveortake.twa"
     defaultConfig {
         applicationId "com.giveortake.twa"
-        minSdkVersion 21
+        // androidbrowserhelper 2.7.2 requires 23. That drops Android 5.x, which is
+        // a rounding error of devices now, and those users can still play the
+        // game in a browser — it is a web app in a wrapper.
+        minSdkVersion 23
         targetSdkVersion 36
         versionCode 4
         versionName "1.0.3"
