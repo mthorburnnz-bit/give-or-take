@@ -74,6 +74,18 @@
      anything around it. */
   --color-channel: #050d20;
 
+  /* Glow is a dark-ground device. Tokenised so the paper surfaces can switch
+     it off rather than each rule hardcoding a colour, which is how the reveal
+     ended up still glowing in a green this palette no longer contains. */
+  --glow-hit: 0 0 20px rgba(52, 211, 153, 0.45);
+  --glow-miss: 0 0 20px rgba(255, 122, 92, 0.4);
+  --ring-tight: 0 0 0 4px rgba(52, 211, 153, 0.28);
+
+  /* The paper the readable panels are printed on, laid over the dark stage. */
+  --paper: #faf6ec;
+  --paper-line: #e2d7bf;
+  --paper-ink: #211c15;
+
   --max-width: 480px;
 }
 
@@ -210,6 +222,98 @@ svg {
   }
 }
 
+/* ---------- Lit page ---------- */
+
+/* The surround stays a dark studio; the panels you actually read become warm
+   paper laid on it. Puzzmo does the same thing, and for the same reason: a
+   dark card on a dark ground separated by 1.27:1 barely reads as an object,
+   and prose is harder work on a dark surface.
+
+   These panels redeclare the tokens rather than restyling their contents, so
+   every descendant follows. `color` has to be restated too: body resolves it
+   once and descendants inherit the computed value, so redefining --color-ink
+   deeper never reaches text that does not re-read the token. */
+.today-card,
+.question-body,
+.recap-item,
+.stat-card,
+.confidence-card,
+.archive-item,
+.leaderboard-item,
+.settings-row,
+.streak-row {
+  background: var(--paper);
+  border: 1px solid var(--paper-line);
+  box-shadow: 0 10px 30px rgba(2, 6, 18, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  color: var(--paper-ink);
+
+  --color-ink: #211c15;
+  --color-ink-soft: #5c5446;
+  --color-ink-faint: #6f6759;
+  --color-line: #ddd2bb;
+  --color-channel: #e3d8c2;
+  --color-paper-raised: #efe6d4;
+  --color-card: #faf6ec;
+
+  /* Gold is far too pale to carry text on paper, so text accents go bronze.
+     The button keeps its bright gold, being the one element that should look
+     lit rather than printed. */
+  --color-accent: #8a6410;
+  --color-accent-soft: rgba(138, 100, 16, 0.13);
+  /* Dark ink, because the one thing this token dresses on paper is the gold
+     capsule. The bronze pill states its own colour below. */
+  --color-on-accent: #2a1c00;
+
+  /* The Okabe-Ito pair in their paper-safe form, and the punch values from
+     before the reskin. All of these were contrast-verified on this surface. */
+  --color-hit: #007a5e;
+  --color-hit-soft: #d9efe8;
+  --color-miss: #be4600;
+  --color-miss-soft: #f7e3d5;
+  --color-tight: #8e6509;
+  --color-hit-punch: #00795d;
+  --color-hit-punch-bright: #00d99b;
+  --color-hit-punch-ink: #023d2d;
+  --color-miss-punch: #c4470b;
+  --color-miss-punch-bright: #ff5a1f;
+  --color-miss-punch-ink: #4a1400;
+
+  /* No glow on paper. */
+  --glow-hit: none;
+  --glow-miss: none;
+  --ring-tight: 0 0 0 4px rgba(0, 217, 155, 0.3);
+}
+
+
+/* Nested panels sit a shade down from the sheet they are on, rather than
+   floating as another card. */
+.question-body .rs-mid-label {
+  color: #ffffff;
+}
+
+/* The bracket fill goes bronze on paper. Gold measures 1.50:1 against the
+   paper channel, which is not a bar anyone can see; bronze is the same hue
+   carried to a weight paper can hold, at 3.80:1. The glow goes with it, being
+   a dark-ground device. */
+.question-body .rs-fill {
+  background: linear-gradient(180deg, #a87a14, #8a6410);
+  box-shadow: none;
+}
+
+.fun-fact,
+.category-bar-track,
+.leaderboard-tabs,
+.challenge-banner {
+  background: var(--color-paper-raised);
+  border: 1px solid var(--color-line);
+  box-shadow: none;
+}
+
+/* The primary action keeps the lit gold capsule on every surface. */
+.btn-primary {
+  color: #2a1c00;
+}
+
 /* ---------- Top bar ---------- */
 
 .topbar {
@@ -271,8 +375,10 @@ svg {
 }
 
 .btn-primary {
-  background: linear-gradient(180deg, #ffd970, var(--color-accent-deep));
-  color: var(--color-on-accent);
+  /* The lit gold capsule, stated outright rather than via the accent tokens:
+     it is the same button whether it sits on the stage or on paper. */
+  background: linear-gradient(180deg, #ffd970, #e0a92c);
+  color: #2a1c00;
   width: 100%;
   box-shadow: 0 2px 4px rgba(2, 6, 18, 0.55), 0 8px 18px rgba(2, 6, 18, 0.45), var(--glow-accent);
 }
@@ -491,12 +597,12 @@ svg {
 
 .reveal-points.state-hit {
   color: var(--color-hit-punch);
-  text-shadow: 0 0 20px rgba(0, 217, 155, 0.45);
+  text-shadow: var(--glow-hit);
 }
 
 .reveal-points.state-miss {
   color: var(--color-miss-punch);
-  text-shadow: 0 0 20px rgba(255, 90, 31, 0.4);
+  text-shadow: var(--glow-miss);
 }
 
 .reveal-badge {
@@ -524,7 +630,7 @@ svg {
 .reveal-badge.state-tight {
   background: var(--color-hit-punch-bright);
   color: var(--color-hit-punch-ink);
-  box-shadow: 0 0 0 4px rgba(0, 217, 155, 0.25);
+  box-shadow: var(--ring-tight);
 }
 
 .reveal-pop {
@@ -1363,6 +1469,9 @@ svg {
   overflow-wrap: break-word;
   font-size: 0.76rem;
   font-weight: 700;
+  /* Rides the accent, which is gold on the stage and bronze on paper. Dark
+     ink reads on the first and white on the second, so the pill declares
+     its own rather than borrowing the button's. */
   color: var(--color-on-accent);
   background: var(--color-accent);
   padding: 3px 10px;
